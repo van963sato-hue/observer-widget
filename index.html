@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0b0c10" />
+<title>観測者ウィジェット PWA — Prototype</title>
+<link rel="manifest" href="#manifest-placeholder" id="manifest-link">
+<style>
+:root{
+  --bg:#0b0c10;--card:#12141a;--muted:#9aa6b2;--hi:#ff7b54;--ok:#5bffa5;--fg:#e9eef5;--accent:#ffb020;--warning:#ff6b6b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
+.container{max-width:420px;margin:0 auto;padding:12px}
+.widget{position:relative;width:100%;aspect-ratio:1/1;border-radius:20px;border:1px solid #232632;overflow:hidden;background:linear-gradient(180deg,#141822,#0b0e15)}
+.header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0e1118}
+.badge{font-size:12px;border:1px solid #2a3142;border-radius:999px;padding:2px 8px;color:#bcd2ff;background:#0d1a2b}
+.sprite{position:absolute;inset:0;display:grid;place-items:center}
+.sprite img{max-width:80%;max-height:80%;image-rendering:pixelated}
+.hud{position:absolute;left:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;gap:6px;align-items:center;background:#101420;border:1px solid #232632;border-radius:999px;padding:4px 8px}
+.pill b{color:#a8ffcf}
+.btn-main{position:absolute;right:10px;bottom:10px;background:#151a26;border:1px solid #2a3142;color:var(--fg);border-radius:14px;padding:8px 12px;cursor:pointer}
+.btn-main:active{transform:translateY(1px)}
+.menu{position:absolute;inset:0;display:none;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.65));backdrop-filter:blur(2px)}
+.menu.show{display:grid;place-items:center}
+.grid{display:grid;grid-template-columns:repeat(3,94px);gap:8px}
+.tile{background:#0f1320;border:1px solid #2a3142;border-radius:14px;width:94px;height:94px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6px}
+.tile small{color:var(--muted);font-size:11px}
+.tile:active{transform:translateY(1px)}
+.footer{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.small{font-size:12px;color:var(--muted)}
+hr{border:0;border-top:1px dashed #2a3142;margin:12px 0}
+.hidden{display:none}
+/* panels */
+.panel{border:1px solid #232632;border-radius:14px;padding:10px;background:#0f121a}
+.panel h3{margin:0 0 6px 0;font-size:14px}
+input[type="text"], input[type="time"], textarea{width:100%;background:#0b0e15;border:1px solid #202636;color:var(--fg);border-radius:10px;padding:8px}
+button{background:#171c28;border:1px solid #2a3142;color:#e9eef5;padding:8px 10px;border-radius:10px;cursor:pointer}
+button.ghost{background:transparent}
+button.ok{background:#0d1f17;border-color:#2e664a}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.list{list-style:none;margin:8px 0 0;padding:0}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid #232632;border-radius:10px}
+.canvas-wrap{display:grid;place-items:center;background:#0b0e15;border:1px dashed #2a3142;border-radius:12px;padding:8px}
+canvas{max-width:100%}
+kbd{background:#1b1f2a;border:1px solid #2a3142;padding:2px 6px;border-radius:6px;font-family:ui-monospace, SFMono-Regular, Consolas, Menlo, Monaco, monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="row">
+      <span class="badge">観測者ウィジェット</span>
+    </div>
+    <div class="row small">
+      <span id="charName">—</span>
+      <button id="switchBtn" class="ghost" title="キャラ切替">切替</button>
+    </div>
+  </div>
+
+  <div class="widget" id="widget">
+    <div class="sprite" id="sprite"><img id="gif" alt="sprite"></div>
+    <div class="hud" id="hud">
+      <div class="pill">❤︎<b id="love">0</b></div>
+      <div class="pill">🍪 <b id="hunger">100</b></div>
+      <div class="pill">💤 <b id="energy">100</b></div>
+    </div>
+    <button class="btn-main" id="menuBtn">メニュー</button>
+    <div class="menu" id="menu">
+      <div class="grid">
+        <div class="tile" data-open="weather"><div>⛅️</div><small>天気</small></div>
+        <div class="tile" data-open="postcard"><div>🖼️</div><small>スクショ</small></div>
+        <div class="tile" data-open="alarm"><div>⏰</div><small>目覚まし</small></div>
+        <div class="tile" data-open="todo"><div>✅</div><small>ToDo</small></div>
+        <div class="tile" data-open="memo"><div>📝</div><small>メモ</small></div>
+        <div class="tile" data-open="news"><div>📰</div><small>ニュース</small></div>
+        <div class="tile" data-open="rpg"><div>⚔️</div><small>観測RPG</small></div>
+        <div class="tile" data-open="puyo"><div>🔷</div><small>観測ぷよ</small></div>
+        <div class="tile" data-action="feed"><div>🍪</div><small>おやつ</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer small">
+    <span>ヒント：ウィジェットをタップで♥上昇。<kbd>ホーム画面に追加</kbd>でPWA化。</span>
+  </div>
+
+  <div id="panels">
+    <!-- Weather Panel -->
+    <section class="panel hidden" id="panel-weather">
+      <h3>⛅️ 天気（現在地）</h3>
+      <div class="row"><button id="btnWeather">取得</button><span class="small">Open‑Meteo使用（APIキー不要）</span></div>
+      <pre id="weatherOut" class="small">未取得</pre>
+    </section>
+
+    <!-- Postcard/Screenshot Panel -->
+    <section class="panel hidden" id="panel-postcard">
+      <h3>🖼️ スクショ（ポストカード生成）</h3>
+      <div class="canvas-wrap"><canvas id="shot" width="640" height="640"></canvas></div>
+      <div class="row" style="margin-top:8px"><button id="btnShot">生成</button><a id="dlShot" download="observer_postcard.png"><button class="ok">保存</button></a></div>
+      <div class="small">※端末の画面キャプチャではなく、このウィジェットの状態を合成します。</div>
+    </section>
+
+    <!-- Alarm Panel -->
+    <section class="panel hidden" id="panel-alarm">
+      <h3>⏰ 目覚まし</h3>
+      <div class="row">
+        <input type="time" id="alarmTime"> <button id="addAlarm">追加</button> <button id="testAlarm" class="ghost">通知テスト</button>
+      </div>
+      <ul id="alarms" class="list"></ul>
+      <div class="small">通知を許可すると、指定時刻にリマインドします（ローカル動作）。</div>
+    </section>
+
+    <!-- Todo Panel -->
+    <section class="panel hidden" id="panel-todo">
+      <h3>✅ ToDo</h3>
+      <div class="row"><input type="text" id="todoText" placeholder="やること…"><button id="addTodo">追加</button></div>
+      <ul id="todoList" class="list"></ul>
+    </section>
+
+    <!-- Memo Panel -->
+    <section class="panel hidden" id="panel-memo">
+      <h3>📝 メモ帳</h3>
+      <textarea id="memo" rows="6" placeholder="自由メモ"></textarea>
+      <div class="row" style="margin-top:8px"><button id="saveMemo" class="ok">保存</button><span class="small" id="memoSaved"> </span></div>
+    </section>
+
+    <!-- News Panel -->
+    <section class="panel hidden" id="panel-news">
+      <h3>📰 ニュース</h3>
+      <div class="row small">
+        <span>RSS/JSON URL：</span><input type="text" id="newsUrl" placeholder="https://example.com/feed.xml">
+        <button id="loadNews">読込</button>
+      </div>
+      <ul id="newsList" class="list"></ul>
+      <div class="small">※CORS制限時は別ドメインのプロキシを利用してください（例：自前Cloudflare Worker）。</div>
+    </section>
+
+    <!-- RPG Panel -->
+    <section class="panel hidden" id="panel-rpg">
+      <h3>⚔️ 観測ハクスラRPG（超ミニ）</h3>
+      <div id="rpgBox" class="small"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="rpgFight">探索</button>
+        <button id="rpgHeal" class="ghost">休む</button>
+        <span id="rpgMsg" class="small"></span>
+      </div>
+    </section>
+
+    <!-- Puyo Panel -->
+    <section class="panel hidden" id="panel-puyo">
+      <h3>🔷 観測ぷよ（簡易版）</h3>
+      <div class="canvas-wrap"><canvas id="puyo" width="240" height="480"></canvas></div>
+      <div class="row small" style="margin-top:8px">
+        <span>操作：← → で移動、↑ 回転、↓ 落下</span>
+        <button id="puyoStart">開始</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+// ---------------------------
+// キャラ設定（差し替えOK）
+// ---------------------------
+const CHARACTERS = [
+  { id:'kamil', name:'カミル', gif:'assets/kamil_chibi.gif' },
+  { id:'skuda', name:'スクーダ', gif:'assets/skuda_chibi.gif' },
+  { id:'yuu',   name:'ユウ',   gif:'assets/yuu_chibi.gif' },
+  { id:'ryo',   name:'リョウ', gif:'assets/ryo_chibi.gif' },
+  { id:'level', name:'レヴェル', gif:'assets/level_chibi.gif' }
+];
+
+// フォールバック絵文字（GIF未配置時）
+const FALLBACK_EMOJI = {kamil:'🪽', skuda:'🦇', yuu:'🦅', ryo:'🐺', level:'🐉'};
+
+// 状態
+const state = {
+  idx: +localStorage.getItem('obs.char.idx') || 0,
+  love: +localStorage.getItem('obs.love') || 0,
+  hunger: +localStorage.getItem('obs.hunger') || 100,
+  energy: +localStorage.getItem('obs.energy') || 100
+};
+
+// 要素
+const el = (id)=>document.getElementById(id);
+const gif = el('gif');
+
+function saveVital(){
+  localStorage.setItem('obs.love', state.love);
+  localStorage.setItem('obs.hunger', state.hunger);
+  localStorage.setItem('obs.energy', state.energy);
+}
+
+function renderChar(){
+  const c = CHARACTERS[state.idx % CHARACTERS.length];
+  el('charName').textContent = c.name;
+  localStorage.setItem('obs.char.idx', state.idx);
+  // try load gif, else fallback
+  gif.src = c.gif;
+  gif.onerror = ()=>{ gif.onerror=null; gif.removeAttribute('src'); gif.alt=c.name; gif.replaceWith(Object.assign(document.createElement('div'),{textContent:FALLBACK_EMOJI[c.id]||'⭐',style:'font-size:96px'})); };
+  renderVitals();
+}
+
+function renderVitals(){
+  el('love').textContent = state.love;
+  el('hunger').textContent = state.hunger;
+  el('energy').textContent = state.energy;
+}
+
+// タップでなつき度UP / 消費
+el('widget').addEventListener('click', (ev)=>{
+  if (ev.target.closest('#menu')) return; // メニューは別
+  state.love += 1;
+  state.hunger = Math.max(0, state.hunger-1);
+  state.energy = Math.max(0, state.energy-1);
+  saveVital();
+  renderVitals();
+});
+
+// メニュー制御
+const menu = el('menu');
+const menuBtn = el('menuBtn');
+menuBtn.onclick = ()=> menu.classList.toggle('show');
+menu.addEventListener('click',(e)=>{
+  const t = e.target.closest('.tile'); if(!t) return;
+  const open = t.dataset.open; const act=t.dataset.action;
+  if (open) openPanel(open);
+  if (act==='feed'){ state.hunger = Math.min(100, state.hunger+10); saveVital(); renderVitals(); }
+  menu.classList.remove('show');
+});
+
+function openPanel(name){
+  document.querySelectorAll('#panels .panel').forEach(p=>p.classList.add('hidden'));
+  const p = el('panel-'+name);
+  if (p) p.classList.remove('hidden');
+}
+
+// キャラ切替
+el('switchBtn').onclick = ()=>{ state.idx=(state.idx+1)%CHARACTERS.length; renderChar(); };
+
+renderChar();
+
+// ---------------------------
+// 天気：Open‑Meteo（API不要）
+// ---------------------------
+async function fetchWeather(){
+  const out = el('weatherOut');
+  out.textContent = '測位中…';
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    try{
+      const {latitude:lat, longitude:lon} = pos.coords;
+      out.textContent = '取得中…';
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`;
+      const r = await fetch(url);
+      const j = await r.json();
+      const c = j.current || {};
+      out.textContent = `気温: ${c.temperature_2m}°C\n天候コード: ${c.weather_code}\n風速: ${c.wind_speed_10m} m/s`;
+    }catch(e){ out.textContent = '取得失敗: '+e.message; }
+  }, (err)=>{ out.textContent='測位失敗: '+err.message; });
+}
+
+el('btnWeather').onclick = fetchWeather;
+
+// ---------------------------
+// スクショ：キャンバスポストカード
+// ---------------------------
+function drawPostcard(){
+  const c = el('shot'); const g = c.getContext('2d');
+  g.fillStyle = '#101420'; g.fillRect(0,0,c.width,c.height);
+  // frame
+  g.strokeStyle = '#2a3142'; g.lineWidth=8; g.strokeRect(8,8,c.width-16,c.height-16);
+  // sprite
+  const img = document.querySelector('.sprite img, .sprite div');
+  return new Promise((resolve)=>{
+    if (img && img.tagName==='IMG' && img.complete){
+      g.drawImage(img, c.width*0.1, c.height*0.1, c.width*0.8, c.height*0.8);
+      overlay(); resolve();
+    } else {
+      // fallback: emoji/text
+      g.fillStyle='#e9eef5'; g.font='bold 160px system-ui'; g.textAlign='center'; g.fillText(img?.textContent||'⭐', c.width/2, c.height*0.6);
+      overlay(); resolve();
+    }
+    function overlay(){
+      g.fillStyle='rgba(0,0,0,.4)'; g.fillRect(0,c.height-120,c.width,120);
+      g.fillStyle='#e9eef5'; g.font='20px system-ui';
+      const now = new Date();
+      g.fillText(now.toLocaleString(), 24, c.height-80);
+      g.fillText(`❤${state.love} 🍪${state.hunger} 💤${state.energy}`, 24, c.height-48);
+      g.textAlign='right';
+      g.fillText(CHARACTERS[state.idx].name, c.width-24, c.height-48);
+    }
+  });
+}
+
+el('btnShot').onclick = async()=>{ await drawPostcard(); el('dlShot').href = el('shot').toDataURL('image/png'); };
+
+// ---------------------------
+// 目覚まし（ローカル通知）
+// ---------------------------
+const ALARM_KEY = 'obs.alarms.v1';
+function getAlarms(){ return JSON.parse(localStorage.getItem(ALARM_KEY)||'[]'); }
+function setAlarms(a){ localStorage.setItem(ALARM_KEY, JSON.stringify(a)); renderAlarms(); }
+
+async function ensureNotify(){
+  if (!('Notification' in window)) return false;
+  if (Notification.permission==='granted') return true;
+  const p = await Notification.requestPermission(); return p==='granted';
+}
+
+function renderAlarms(){
+  const ul = el('alarms'); ul.innerHTML='';
+  getAlarms().forEach((t,i)=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span>⏰ ${t}</span>`;
+    const b = document.createElement('button'); b.textContent='削除'; b.onclick=()=>{ const a=getAlarms(); a.splice(i,1); setAlarms(a); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+
+el('addAlarm').onclick = async()=>{
+  const v = el('alarmTime').value; if(!v) return;
+  if (!await ensureNotify()) alert('通知を許可してください');
+  const a = getArmsSafe(); a.push(v); setAlarms(a);
+};
+function getArmsSafe(){ try{return getAlarms();}catch{ return []; } }
+
+el('testAlarm').onclick = async()=>{ if(await ensureNotify()) new Notification('観測者ウィジェット', {body:'通知テスト', icon:''}); };
+
+setInterval(()=>{
+  const now = new Date();
+  const hh = now.getHours().toString().padStart(2,'0');
+  const mm = now.getMinutes().toString().padStart(2,'0');
+  const cur = `${hh}:${mm}`;
+  const a = getAlarms();
+  if (a.includes(cur)){
+    if ('vibrate' in navigator) navigator.vibrate([200,100,200]);
+    if ('Notification' in window && Notification.permission==='granted'){
+      new Notification('⏰ アラーム', { body: `${cur}`, tag:'obs-alarm' });
+    }
+  }
+}, 1000*20); // 20秒ごと確認（省電力）
+
+renderAlarms();
+
+// ---------------------------
+// ToDo & メモ
+// ---------------------------
+function todos(){ return JSON.parse(localStorage.getItem('obs.todos')||'[]'); }
+function saveTodos(v){ localStorage.setItem('obs.todos', JSON.stringify(v)); renderTodos(); }
+function renderTodos(){ const ul=el('todoList'); ul.innerHTML=''; todos().forEach((t,i)=>{ const li=document.createElement('li'); li.innerHTML=`<span>${t.text}</span>`; const b=document.createElement('button'); b.textContent='完了'; b.onclick=()=>{ const a=todos(); a.splice(i,1); saveTodos(a); }; li.appendChild(b); ul.appendChild(li); }); }
+
+el('addTodo').onclick = ()=>{ const v=el('todoText').value.trim(); if(!v) return; const a=todos(); a.push({text:v,ts:Date.now()}); saveTodos(a); el('todoText').value=''; };
+renderTodos();
+
+el('saveMemo').onclick = ()=>{ localStorage.setItem('obs.memo', el('memo').value); el('memoSaved').textContent='保存しました'; setTimeout(()=>el('memoSaved').textContent=' ',1500); };
+el('memo').value = localStorage.getItem('obs.memo')||'';
+
+// ---------------------------
+// ニュース（超簡易・URL直読）
+// ---------------------------
+async function loadNews(){
+  const url = el('newsUrl').value.trim();
+  const ul = el('newsList'); ul.innerHTML='';
+  if(!url){ ul.innerHTML='<li>URLを入力してください</li>'; return; }
+  try{
+    const r = await fetch(url);
+    const text = await r.text();
+    // RSS（XML）っぽかったら雑にパース
+    if (text.trim().startsWith('<')){
+      const dom = new DOMParser().parseFromString(text, 'application/xml');
+      const items = [...dom.querySelectorAll('item,title')].slice(0,10);
+      items.forEach(it=>{
+        const title = it.querySelector('title')?.textContent || it.textContent || '(no title)';
+        const link = it.querySelector('link')?.textContent || '#';
+        const li = document.createElement('li'); li.innerHTML = `<a href="${link}" target="_blank">${title}</a>`; ul.appendChild(li);
+      });
+    } else {
+      // JSON想定：[{title, url}] or {articles:[...]}
+      const j = JSON.parse(text);
+      const arr = Array.isArray(j)? j : (j.articles||[]);
+      arr.slice(0,10).forEach(a=>{ const li=document.createElement('li'); li.innerHTML=`<a href="${a.url||'#'}" target="_blank">${a.title||'(no title)'}</a>`; ul.appendChild(li); });
+    }
+  }catch(e){ ul.innerHTML = `<li>読込失敗: ${e.message}</li>`; }
+}
+
+el('loadNews').onclick = loadNews;
+
+// ---------------------------
+// 観測ハクスラRPG（クリック探索）
+// ---------------------------
+const rpg = { hp: +(localStorage.getItem('rpg.hp')||30), atk:1, gold:+(localStorage.getItem('rpg.gold')||0), lv:+(localStorage.getItem('rpg.lv')||1) };
+function rpgSave(){ localStorage.setItem('rpg.hp', rpg.hp); localStorage.setItem('rpg.gold', rpg.gold); localStorage.setItem('rpg.lv', rpg.lv); }
+function rpgRender(){ el('rpgBox').innerHTML = `HP:${rpg.hp} / LV:${rpg.lv} / 💰${rpg.gold}`; }
+rpgRender();
+
+enl = (id)=>document.getElementById(id);
+
+enl('rpgFight').onclick = ()=>{
+  const dmg = 1 + Math.floor(Math.random()* (rpg.lv+1));
+  const drop = Math.random() < 0.5 ? 1:0;
+  rpg.hp = Math.max(0, rpg.hp - Math.floor(Math.random()*3));
+  rpg.gold += drop;
+  if (rpg.gold && rpg.gold % 10 === 0){ rpg.lv++; }
+  rpgSave(); rpgRender();
+  el('rpgMsg').textContent = `敵に${dmg}ダメージ！ 金貨+${drop}`;
+};
+
+enl('rpgHeal').onclick = ()=>{ rpg.hp = Math.min(30, rpg.hp+5); rpgSave(); rpgRender(); el('rpgMsg').textContent='休息してHP回復'; };
+
+// ---------------------------
+// 観測ぷよ（超簡易：落ち物 + 4消し）
+// ---------------------------
+const P = { W:6, H:12, size:40, grid:[], cur:null, timer:null, speed:600, running:false };
+const colors = ['#5bc0eb','#fde74c','#9bc53d','#e55934'];
+const pc = el('puyo'); const pg = pc.getContext('2d');
+
+function puyoReset(){ P.grid = Array.from({length:P.H},()=>Array(P.W).fill(-1)); P.cur=null; }
+function rand(n){ return Math.floor(Math.random()*n); }
+function spawn(){ P.cur = { x:2, y:0, pair:[rand(colors.length), rand(colors.length)], rot:0 }; }
+function draw(){ pg.clearRect(0,0,pc.width,pc.height); // grid
+  for(let y=0;y<P.H;y++) for(let x=0;x<P.W;x++){ const v=P.grid[y][x]; if(v>=0){ pg.fillStyle=colors[v]; pg.fillRect(x*P.size,y*P.size,P.size-1,P.size-1);} }
+  if(P.cur){ const [a,b]=curCells(); const col=P.cur.pair; [a,b].forEach((c,i)=>{ pg.fillStyle=colors[col[i]]; pg.fillRect(c.x*P.size,c.y*P.size,P.size-1,P.size-1); }); }
+}
+function curCells(){ const {x,y,rot}=P.cur; const d=[[0,-1],[1,0],[0,1],[-1,0]][rot%4]; return [{x,y},{x:x+d[0],y:y+d[1]}]; }
+function canPlace(cells){ return cells.every(c=> c.x>=0 && c.x<P.W && c.y>=0 && c.y<P.H && P.grid[c.y][c.x]===-1 ); }
+function fixToGrid(){ const [a,b]=curCells(); const [ca,cb]=P.cur.pair; if(a.y<0||b.y<0){ gameOver(); return; } P.grid[a.y][a.x]=ca; P.grid[b.y][b.x]=cb; clearMatches(); spawn(); }
+function clearMatches(){ const vis=Array.from({length:P.H},()=>Array(P.W).fill(false)); let cleared=false;
+  for(let y=0;y<P.H;y++)for(let x=0;x<P.W;x++){ const v=P.grid[y][x]; if(v<0||vis[y][x]) continue; const q=[[x,y]]; vis[y][x]=true; const group=[[x,y]]; while(q.length){ const [cx,cy]=q.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const nx=cx+dx, ny=cy+dy; if(nx>=0&&nx<P.W&&ny>=0&&ny<P.H&&!vis[ny][nx]&&P.grid[ny][nx]===v){ vis[ny][nx]=true; q.push([nx,ny]); group.push([nx,ny]); }}); }
+    if(group.length>=4){ group.forEach(([gx,gy])=>P.grid[gy][gx]=-1); cleared=true; state.love+=group.length; saveVital(); renderVitals(); }
+  }
+  if(cleared) applyGravity();
+}
+function applyGravity(){ for(let x=0;x<P.W;x++){ let write=P.H-1; for(let y=P.H-1;y>=0;y--){ if(P.grid[y][x]>=0){ const v=P.grid[y][x]; P.grid[y][x]=-1; P.grid[write][x]=v; write--; } } }
+}
+function step(){ if(!P.running) return; if(!P.cur) spawn(); const down={...P.cur}; down.y++; if(canPlace(curCells.call({cur:down}))){ P.cur=down; } else { fixToGrid(); }
+  draw(); }
+function gameOver(){ P.running=false; clearInterval(P.timer); alert('Game Over'); }
+
+document.addEventListener('keydown',(e)=>{
+  if(!P.running||!P.cur) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+  if(e.key==='ArrowLeft'){ const n={...P.cur}; n.x--; if(canPlace(curCells.call({cur:n}))) P.cur=n; }
+  if(e.key==='ArrowRight'){ const n={...P.cur}; n.x++; if(canPlace(curCells.call({cur:n}))) P.cur=n; }
+  if(e.key==='ArrowUp'){ const n={...P.cur}; n.rot=(n.rot+1)%4; if(canPlace(curCells.call({cur:n}))) P.cur=n; }
+  if(e.key==='ArrowDown'){ step(); }
+  draw();
+});
+
+el('puyoStart').onclick = ()=>{ puyoReset(); spawn(); P.running=true; clearInterval(P.timer); P.timer=setInterval(step, P.speed); draw(); };
+
+// ---------------------------
+// PWA: 即席マニフェスト＆SW（1ファイル完結）
+// ---------------------------
+const MANIFEST = {
+  name: "観測者ウィジェット",
+  short_name: "観測ウィジェ",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0b0c10",
+  theme_color: "#0b0c10",
+  icons: []
+};
+// 動的にdata:URLで埋め込み
+(function(){
+  const blob = new Blob([JSON.stringify(MANIFEST)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  document.getElementById('manifest-link').href = url;
+})();
+
+// 最小SW（オフラインキャッシュ）
+if ('serviceWorker' in navigator){
+  const swCode = `self.addEventListener('install',e=>{e.waitUntil(caches.open('obs-widget-v1').then(c=>c.addAll(['./'])))}); self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))})`;
+  const swBlob = new Blob([swCode],{type:'text/javascript'});
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl);
+}
+</script>
+</body>
+</html>
