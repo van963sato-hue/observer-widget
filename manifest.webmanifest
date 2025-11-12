@@ -1,49 +1,20 @@
 {
   "name": "観測者ウィジェット",
   "short_name": "観測ウィジェ",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "/observer-widget/",
+  "scope": "/observer-widget/",
   "display": "standalone",
   "background_color": "#0b0c10",
   "theme_color": "#0b0c10",
   "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/observer-widget/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/observer-widget/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
-    {
-      "name": "天気",
-      "short_name": "天気",
-      "url": "./?open=weather"
-    },
-    {
-      "name": "ToDo",
-      "short_name": "ToDo",
-      "url": "./?open=todo"
-    },
-    {
-      "name": "メモ",
-      "short_name": "メモ",
-      "url": "./?open=memo"
-    },
-    {
-      "name": "ニュース",
-      "short_name": "ニュース",
-      "url": "./?open=news"
-    },
-    {
-      "name": "観測ぷよ",
-      "short_name": "ぷよ",
-      "url": "./?open=puyo"
-    }
+    { "name": "天気", "short_name": "天気", "url": "/observer-widget/?open=weather" },
+    { "name": "ToDo", "short_name": "ToDo", "url": "/observer-widget/?open=todo" },
+    { "name": "メモ", "short_name": "メモ", "url": "/observer-widget/?open=memo" },
+    { "name": "ニュース", "short_name": "ニュース", "url": "/observer-widget/?open=news" },
+    { "name": "観測ぷよ", "short_name": "ぷよ", "url": "/observer-widget/?open=puyo" }
   ]
 }
